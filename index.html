@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>現代化預約系統</title>
+    
+    <!-- 引入 FullCalendar 6 CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --primary: #3b82f6;
+            --primary-dark: #2563eb;
+            --bg-gray: #f8fafc;
+            --border: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --break-pattern: repeating-linear-gradient(45deg, #f1f5f9, #f1f5f9 10px, #f8fafc 10px, #f8fafc 20px);
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 40px 20px;
+            background-color: var(--bg-gray);
+            color: var(--text-main);
+            line-height: 1.5;
+        }
+
+        .app-container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .header-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header-section h1 {
+            font-weight: 700;
+            letter-spacing: -0.025em;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+
+        .header-section p {
+            color: var(--text-muted);
+            font-size: 1.1rem;
+        }
+
+        /* 側邊圖例 */
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 3px;
+        }
+
+        /* 日曆容器 */
+        .calendar-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+            padding: 24px;
+            border: 1px solid var(--border);
+        }
+
+        /* FullCalendar 深度美化 */
+        .fc {
+            --fc-border-color: #f1f5f9;
+            --fc-button-bg-color: #ffffff;
+            --fc-button-border-color: #e2e8f0;
+            --fc-button-text-color: #475569;
+            --fc-button-hover-bg-color: #f8fafc;
+            --fc-button-active-bg-color: #f1f5f9;
+            --fc-today-bg-color: #eff6ff;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .fc .fc-button {
+            font-weight: 500;
+            text-transform: capitalize;
+            padding: 8px 16px;
+            box-shadow: none !important;
+        }
+
+        .fc .fc-button-primary:not(:disabled).fc-button-active, 
+        .fc .fc-button-primary:not(:disabled):active {
+            color: var(--primary);
+            background-color: #eff6ff;
+            border-color: var(--primary);
+        }
+
+        .fc .fc-col-header-cell {
+            padding: 12px 0;
+            background-color: #fcfcfd;
+            font-weight: 600;
+        }
+
+        .fc-timegrid-slot {
+            height: 4.5em !important;
+        }
+
+        .fc-timegrid-slot-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* 休息時段樣式 */
+        .break-time-bg {
+            background: var(--break-pattern) !important;
+            opacity: 0.8;
+        }
+
+        .break-time-event {
+            border: none !important;
+            box-shadow: none !important;
+            pointer-events: none;
+        }
+
+        /* 選取範圍樣式 */
+        .fc-highlight {
+            background: rgba(59, 130, 246, 0.1) !important;
+        }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="header-section">
+        <h1>預約時段查詢</h1>
+        <p>選擇一個合適的時間，開啟您的服務行程</p>
+    </div>
+
+    <div class="legend">
+        <div class="legend-item"><span class="dot" style="background: #cbd5e1;"></span> 忙碌/已過期</div>
+        <div class="legend-item"><span class="dot" style="background: #f1f5f9; border: 1px dashed #cbd5e1;"></span> 休息時間</div>
+        <div class="legend-item"><span class="dot" style="background: var(--primary);"></span> 您的選擇</div>
+    </div>
+    
+    <div class="calendar-card">
+        <div id="calendar"></div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendarEl = document.getElementById('calendar');
+        const now = new Date();
+
+        const minDate = new Date();
+        minDate.setDate(now.getDate() - 2);
+        minDate.setHours(0, 0, 0, 0);
+
+        const maxDate = new Date();
+        maxDate.setDate(now.getDate() + 30);
+
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'timeGrid',
+            
+            validRange: {
+                start: minDate,
+                end: maxDate
+            },
+
+            views: {
+                timeGrid: {
+                    dayCount: 7,
+                    titleFormat: { year: 'numeric', month: 'long' }
+                }
+            },
+
+            locale: 'zh-tw',
+            slotMinTime: '08:00:00',
+            slotMaxTime: '21:00:00',
+            slotDuration: '01:00:00',
+            
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: ''
+            },
+
+            allDaySlot: false,
+            selectable: true,
+            selectMirror: true,
+            nowIndicator: true,
+            handleWindowResize: true,
+
+            events: [
+                {
+                    title: '已預訂',
+                    start: new Date().toISOString().split('T')[0] + 'T14:00:00',
+                    end: new Date().toISOString().split('T')[0] + 'T16:00:00',
+                    color: '#e2e8f0',
+                    textColor: '#94a3b8',
+                    display: 'block'
+                },
+                {
+                    title: '休息時間',
+                    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
+                    startTime: '12:00:00',
+                    endTime: '13:00:00',
+                    display: 'block',
+                    color: 'transparent',
+                    textColor: '#94a3b8',
+                    classNames: ['break-time-event']
+                }
+            ],
+
+            select: function(info) {
+                const selectStart = info.start;
+                const selectEnd = info.end;
+                
+                // 阻擋午休 (12:00-13:00)
+                if (selectStart.getHours() === 12 || (selectStart.getHours() < 12 && selectEnd.getHours() > 12)) {
+                    showNotice('休息時間暫不開放預約');
+                    calendar.unselect();
+                    return;
+                }
+
+                // 阻擋過去時間
+                if (selectStart < now) {
+                    showNotice('無法預約過去的時間');
+                    calendar.unselect();
+                    return;
+                }
+
+                const timeStr = selectStart.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
+                const dateStr = selectStart.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' });
+                
+                if(confirm(`確認預約：\n日期：${dateStr}\n時間：${timeStr}\n\n是否繼續？`)) {
+                    calendar.addEvent({
+                        title: '您的預約',
+                        start: info.start,
+                        end: info.end,
+                        color: '#3b82f6'
+                    });
+                }
+                calendar.unselect();
+            }
+        });
+
+        function showNotice(msg) {
+            // 簡單的提示邏輯，可替換為更精美的 Toast
+            alert(msg);
+        }
+
+        calendar.render();
+    });
+</script>
+
+</body>
+</html>
