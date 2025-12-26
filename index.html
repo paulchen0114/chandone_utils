@@ -155,7 +155,7 @@
 
     <!-- 授權連結（會由腳本填入正確的 base URL） -->
     <div style="text-align: right; margin-bottom: 12px;">
-        <a id="auth-link" href="#" class="auth-button">授權</a>
+        <a id="auth-link" href="https://mysite-e425.onrender.com/authorize" class="auth-button">授權</a>
     </div>
     
     <div class="legend">
@@ -170,15 +170,15 @@
 </div>
 
 <script>
-    // 獲取當前基礎 URL 以構建完整路徑
-    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+    // 指定固定 server host（所有 API 請求都發到此主機）
+    const baseUrl = 'https://mysite-e425.onrender.com';
 
     document.addEventListener('DOMContentLoaded', function() {
         // 更新授權連結
         const authLink = document.getElementById('auth-link');
         if (authLink) authLink.href = `${baseUrl}/authorize`;
 
-        // 直接初始化日曆，不再檢查後端授權狀態
+        // 初始化日曆
         initCalendar();
     });
 
