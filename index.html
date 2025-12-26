@@ -153,6 +153,11 @@
         <p>選擇一個合適的時間，開啟您的服務行程</p>
     </div>
 
+    <!-- 授權連結（會由腳本填入正確的 base URL） -->
+    <div style="text-align: right; margin-bottom: 12px;">
+        <a id="auth-link" href="#" class="auth-button">授權</a>
+    </div>
+    
     <div class="legend">
         <div class="legend-item"><span class="dot" style="background: #cbd5e1;"></span> 忙碌/已過期</div>
         <div class="legend-item"><span class="dot" style="background: #f1f5f9; border: 1px dashed #cbd5e1;"></span> 休息時間</div>
@@ -165,67 +170,73 @@
 </div>
 
 <script>
+    // 獲取當前基礎 URL 以構建完整路徑
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
+
     document.addEventListener('DOMContentLoaded', function() {
+        // 更新授權連結
+        const authLink = document.getElementById('auth-link');
+        if (authLink) authLink.href = `${baseUrl}/authorize`;
+
+        // 直接初始化日曆，不再檢查後端授權狀態
+        initCalendar();
+    });
+
+    function initCalendar() {
         const calendarEl = document.getElementById('calendar');
         const now = new Date();
 
+        // 限制：前兩天以前不能看
         const minDate = new Date();
         minDate.setDate(now.getDate() - 2);
         minDate.setHours(0, 0, 0, 0);
 
+        // 限制：最多選到 30 天後
         const maxDate = new Date();
         maxDate.setDate(now.getDate() + 30);
 
         const calendar = new FullCalendar.Calendar(calendarEl, {
             initialView: 'timeGrid',
-            
-            validRange: {
-                start: minDate,
-                end: maxDate
-            },
-
-            views: {
-                timeGrid: {
-                    dayCount: 7,
-                    titleFormat: { year: 'numeric', month: 'long' }
-                }
-            },
-
+            validRange: { start: minDate, end: maxDate },
+            views: { timeGrid: { dayCount: 7, titleFormat: { year: 'numeric', month: 'long' } } },
             locale: 'zh-tw',
             slotMinTime: '08:00:00',
             slotMaxTime: '21:00:00',
             slotDuration: '01:00:00',
-            
+            allDaySlot: false,
+            selectable: true,
+            nowIndicator: true,
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: ''
             },
 
-            allDaySlot: false,
-            selectable: true,
-            selectMirror: true,
-            nowIndicator: true,
-            handleWindowResize: true,
+            // 串接後端 get-slots API（FullCalendar 會發 GET 請求到此 URL）
+            events: `${baseUrl}/api/get-slots`,
 
-            events: [
+            eventSources: [
                 {
-                    title: '已預訂',
-                    start: new Date().toISOString().split('T')[0] + 'T14:00:00',
-                    end: new Date().toISOString().split('T')[0] + 'T16:00:00',
-                    color: '#e2e8f0',
-                    textColor: '#94a3b8',
-                    display: 'block'
-                },
-                {
-                    title: '休息時間',
-                    daysOfWeek: [0, 1, 2, 3, 4, 5, 6],
-                    startTime: '12:00:00',
-                    endTime: '13:00:00',
-                    display: 'block',
-                    color: 'transparent',
-                    textColor: '#94a3b8',
-                    classNames: ['break-time-event']
+                    events: [
+                        {
+                            groupId: 'lunchBreak',
+                            daysOfWeek: [0,1,2,3,4,5,6],
+                            startTime: '12:00:00',
+                            endTime: '13:00:00',
+                            display: 'background',
+                            classNames: ['break-time-bg']
+                        },
+                        {
+                            title: '休息時間',
+                            daysOfWeek: [0,1,2,3,4,5,6],
+                            startTime: '12:00:00',
+                            endTime: '13:00:00',
+                            display: 'block',
+                            color: 'transparent',
+                            textColor: '#94a3b8',
+                            classNames: ['break-time-event']
+                        }
+                    ]
                 }
             ],
 
@@ -233,24 +244,20 @@
                 const selectStart = info.start;
                 const selectEnd = info.end;
                 
-                // 阻擋午休 (12:00-13:00)
                 if (selectStart.getHours() === 12 || (selectStart.getHours() < 12 && selectEnd.getHours() > 12)) {
-                    showNotice('休息時間暫不開放預約');
+                    alert('12:00 - 13:00 為休息時間。');
                     calendar.unselect();
                     return;
                 }
 
-                // 阻擋過去時間
                 if (selectStart < now) {
-                    showNotice('無法預約過去的時間');
+                    alert('無法預約過去的時間。');
                     calendar.unselect();
                     return;
                 }
 
                 const timeStr = selectStart.toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' });
-                const dateStr = selectStart.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric' });
-                
-                if(confirm(`確認預約：\n日期：${dateStr}\n時間：${timeStr}\n\n是否繼續？`)) {
+                if(confirm(`確認預約 ${timeStr} 嗎？`)) {
                     calendar.addEvent({
                         title: '您的預約',
                         start: info.start,
@@ -262,13 +269,8 @@
             }
         });
 
-        function showNotice(msg) {
-            // 簡單的提示邏輯，可替換為更精美的 Toast
-            alert(msg);
-        }
-
         calendar.render();
-    });
+    }
 </script>
 
 </body>
