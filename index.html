@@ -212,8 +212,19 @@
                 right: ''
             },
 
-            // 串接後端 get-slots API（FullCalendar 會發 GET 請求到此 URL）
-            events: `${baseUrl}/api/get-slots`,
+            // 串接後端 get-slots API，並加上時間戳記防止快取
+            events: function(info, successCallback, failureCallback) {
+                const timestamp = new Date().getTime();
+                const url = `${baseUrl}/api/get-slots?_=${timestamp}&start=${info.startStr}&end=${info.endStr}`;
+                
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => successCallback(data))
+                    .catch(error => {
+                        console.error('Fetch slots error:', error);
+                        failureCallback(error);
+                    });
+            },
 
             eventSources: [
                 {
@@ -270,6 +281,7 @@
         });
 
         calendar.render();
+
     }
 </script>
 
