@@ -450,9 +450,6 @@
         const tabsContainer = document.getElementById('album-tabs');
         
          try {
-            // 嘗試從 localStorage 獲取 Token (若有授權流程)
-            const token = localStorage.getItem('userToken'); 
-            
             const response = await fetch(`${baseUrl}/api/get-albums`);
             const data = await response.json();
             
@@ -485,6 +482,19 @@
             </div>`;
         }
     }
+    // --- 解決 302 問題的關鍵函式 ---
+    function getCleanImageUrl(url) {
+        if (!url) return '';
+        
+        // 1. 如果是 Google Drive 預覽連結，轉換為直接連結
+        if (url.includes('drive.google.com/file/d/')) {
+            const id = url.split('/d/')[1].split('/')[0];
+            return `https://lh3.googleusercontent.com/u/0/d/${id}`;
+        }
+        
+        // 2. 如果連結包含跳轉參數，嘗試清理
+        return url;
+    }
 
     function displayAlbum(index) {
         const gallery = document.getElementById('photo-gallery');
@@ -501,14 +511,18 @@
         });
 
         // 渲染照片
-        gallery.innerHTML = album.photos.map(photo => `
+        gallery.innerHTML = album.photos.map(photo => {
+            // 處理連結解決 302
+            const safeUrl = getCleanImageUrl(photo.url);
+            const safeThumb = photo.thumb ? getCleanImageUrl(photo.thumb) : safeUrl;
+            return `
             <div class="photo-card shadow-sm hover:shadow-2xl transition-all" onclick="openLightbox('${photo.url}', '${photo.name}')">
                 <img src="${photo.thumb || photo.url}" alt="${photo.name}" loading="lazy">
                 <div class="photo-overlay">
                     <span class="text-white text-sm font-medium truncate w-full">${photo.name}</span>
                 </div>
             </div>
-        `).join('');
+        `}).join('');
     }
 
     function openLightbox(url, name) {
