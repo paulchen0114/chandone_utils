@@ -218,8 +218,8 @@
                 // 使用 .toISOString() 轉換為 UTC 格式 (會自動帶上 Z)
                 const startUTC = new Date(info.startStr).toISOString();
                 const endUTC = new Date(info.endStr).toISOString();
-                
-                const url = `/api/get-slots?_=${timestamp}&start=${encodeURIComponent(startUTC)}&end=${encodeURIComponent(endUTC)}`;
+
+                const url = `${baseUrl}/api/get-slots?_=${timestamp}&start=${encodeURIComponent(startUTC)}&end=${encodeURIComponent(endUTC)}`;
         
                 fetch(url)
                     .then(response => response.json())
