@@ -398,9 +398,7 @@
         const tabsContainer = document.getElementById('album-tabs');
         
         try {
-            const response = await fetch(`${baseUrl}/api/get-albums`, {
-                headers: { 'Authorization': `Bearer ${userToken}` }
-            });
+            const response = await fetch(`${baseUrl}/api/get-albums`, );
             albumData = await response.json();
             
             if (albumData.error) throw new Error(albumData.error);
