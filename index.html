@@ -215,8 +215,12 @@
             // 串接後端 get-slots API，並加上時間戳記防止快取
             events: function(info, successCallback, failureCallback) {
                 const timestamp = new Date().getTime();
-                const url = `${baseUrl}/api/get-slots?_=${timestamp}&start=${info.startStr}&end=${info.endStr}`;
+                // 使用 .toISOString() 轉換為 UTC 格式 (會自動帶上 Z)
+                const startUTC = new Date(info.startStr).toISOString();
+                const endUTC = new Date(info.endStr).toISOString();
                 
+                const url = `/api/get-slots?_=${timestamp}&start=${encodeURIComponent(startUTC)}&end=${encodeURIComponent(endUTC)}`;
+        
                 fetch(url)
                     .then(response => response.json())
                     .then(data => successCallback(data))
