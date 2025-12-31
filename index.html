@@ -51,6 +51,35 @@
             font-size: 1.1rem;
         }
 
+        /* navbar */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 12px 0 20px;
+        }
+
+        .nav-link {
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .nav-link:hover {
+            background-color: #f1f5f9;
+        }
+
+        .nav-link.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
         /* 側邊圖例 */
         .legend {
             display: flex;
@@ -143,30 +172,92 @@
         .fc-highlight {
             background: rgba(59, 130, 246, 0.1) !important;
         }
+
+        /* 簡單的 tab / navbar 樣式 */
+        .nav-tabs {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            margin: 12px 0 20px;
+        }
+        .nav-link {
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: white;
+            border: 1px solid var(--border);
+            color: var(--text-main);
+            text-decoration: none;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .nav-link.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        .tab-content { display: block; }
+        .tab-content.hidden { display: none; }
     </style>
 </head>
 <body>
 
 <div class="app-container">
-    <div class="header-section">
-        <h1>預約時段查詢</h1>
-        <p>選擇一個合適的時間，開啟您的服務行程</p>
-    </div>
+    
 
+    <!-- navbar for tabs -->
+    <nav class="nav-tabs" role="tablist" aria-label="主選單">
+        <a class="nav-link active" data-tab="tab-calendar" href="#" role="tab">預約日曆</a>
+        <a class="nav-link" data-tab="tab-settings" href="#" role="tab">相簿</a>
+        <a class="nav-link" data-tab="tab-about" href="#" role="tab">說明</a>
+    </nav>
+    
     <!-- 授權連結（會由腳本填入正確的 base URL） -->
     <div style="text-align: right; margin-bottom: 12px;">
         <a id="auth-link" href="https://mysite-e425.onrender.com/authorize" class="auth-button">授權</a>
     </div>
     
-    <div class="legend">
-        <div class="legend-item"><span class="dot" style="background: #cbd5e1;"></span> 忙碌/已過期</div>
-        <div class="legend-item"><span class="dot" style="background: #f1f5f9; border: 1px dashed #cbd5e1;"></span> 休息時間</div>
-        <div class="legend-item"><span class="dot" style="background: var(--primary);"></span> 您的選擇</div>
-    </div>
+    <!-- tab: calendar -->
+    <section id="tab-calendar" class="tab-content">
+        <div class="header-section">
+            <h1>預約時段查詢</h1>
+            <p>選擇一個合適的時間，開啟您的服務行程</p>
+        </div>
+        <div class="legend">
+            <div class="legend-item"><span class="dot" style="background: #cbd5e1;"></span> 忙碌/已過期</div>
+            <div class="legend-item"><span class="dot" style="background: #f1f5f9; border: 1px dashed #cbd5e1;"></span> 休息時間</div>
+            <div class="legend-item"><span class="dot" style="background: var(--primary);"></span> 您的選擇</div>
+        </div>
+        <div class="calendar-card">
+            <div id="calendar"></div>
+        </div>
+    </section>
     
-    <div class="calendar-card">
-        <div id="calendar"></div>
-    </div>
+    <!-- tab: settings -->
+    <section id="tab-settings" class="tab-content hidden" aria-hidden="true">
+        <section class="py-12 bg-gray-50">
+            <div class="max-w-7xl mx-auto px-4">
+                <h2 class="text-3xl font-bold mb-8 text-center">數位專案相簿</h2>
+                
+                <!-- 相簿容器 -->
+                <div id="photo-gallery" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                    <!-- 載入中狀態 -->
+                    <div class="animate-pulse bg-gray-200 aspect-square rounded-xl"></div>
+                    <div class="animate-pulse bg-gray-200 aspect-square rounded-xl"></div>
+                    <div class="animate-pulse bg-gray-200 aspect-square rounded-xl"></div>
+                    <div class="animate-pulse bg-gray-200 aspect-square rounded-xl"></div>
+                </div>
+            </div>
+        </section>
+    </section>
+    
+    <!-- tab: about -->
+    <section id="tab-about" class="tab-content hidden" aria-hidden="true">
+        <div class="calendar-card">
+            <h3>說明</h3>
+            <p>此介面可瀏覽與預約時段。切換至「設定」可檢視 API host，並手動重新載入時段。</p>
+        </div>
+    </section>
 </div>
 
 <script>
@@ -180,6 +271,7 @@
 
         // 初始化日曆
         initCalendar();
+        loadGallery();
     });
 
     function initCalendar() {
@@ -287,6 +379,77 @@
         calendar.render();
 
     }
+
+    /**
+     * 從後端 API 抓取相簿並渲染
+     * 會向固定的 baseUrl 發請求；若有 userToken 則帶 Authorization header
+     */
+    async function loadGallery() {
+        const gallery = document.getElementById('photo-gallery');
+        if (!gallery) return;
+        gallery.innerHTML = '<div class="col-span-full text-center text-gray-500">載入中…</div>';
+        try {
+            const res = await fetch(`${baseUrl}/api/get-album`, {
+                method: 'GET',
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const photos = await res.json();
+            if (photos.error) throw new Error(photos.error);
+            if (!Array.isArray(photos) || photos.length === 0) {
+                gallery.innerHTML = '<p class="col-span-full text-center text-gray-400">目前尚無照片</p>';
+                return;
+            }
+            gallery.innerHTML = photos.map(photo => `
+                <div class="group relative overflow-hidden rounded-2xl bg-white shadow-md hover:shadow-xl transition-all duration-300">
+                    <img src="${photo.url}" alt="${photo.name || ''}" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
+                        <p class="text-white text-sm font-medium truncate">${photo.name || ''}</p>
+                    </div>
+                </div>
+            `).join('');
+        } catch (err) {
+            console.error('相簿載入失敗:', err);
+            gallery.innerHTML = `<p class="col-span-full text-center text-red-500">載入失敗: ${err.message}</p>`;
+        }
+    }
+
+    // 切換標籤頁
+    document.querySelectorAll('.nav-link').forEach(tab => {
+        tab.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // 取得目標標籤頁 ID
+            const targetTab = this.getAttribute('data-tab');
+
+            // 切換標籤樣式
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+            });
+            this.classList.add('active');
+
+            // 隱藏所有標籤內容
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.add('hidden');
+                content.setAttribute('aria-hidden', 'true');
+            });
+
+            // 顯示目標標籤內容
+            const activeTabContent = document.getElementById(targetTab);
+            if (activeTabContent) {
+                activeTabContent.classList.remove('hidden');
+                activeTabContent.setAttribute('aria-hidden', 'false');
+            }
+        });
+    });
+
+    // 重新載入時段按鈕
+    document.getElementById('refresh-slots').addEventListener('click', function() {
+        const calendar = FullCalendar.getInstanceById('calendar');
+        if (calendar) {
+            calendar.refetchEvents();
+        }
+    });
+
 </script>
 
 </body>
