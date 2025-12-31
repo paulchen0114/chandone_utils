@@ -235,20 +235,34 @@
     
     <!-- tab: settings -->
     <section id="tab-settings" class="tab-content hidden" aria-hidden="true">
-        <section class="py-12 bg-gray-50">
+     
+        <!-- 2. 前端 展示介面 (支援多相簿切換與燈箱) -->
+        <section class="py-12 bg-slate-50 min-h-screen">
             <div class="max-w-7xl mx-auto px-4">
-                <h2 class="text-3xl font-bold mb-8 text-center">數位專案相簿</h2>
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold mb-4">數位專案相簿群組</h2>
+                    <!-- 相簿切換按鈕區域 -->
+                    <div id="album-tabs" class="flex flex-wrap justify-center gap-2 mb-8">
+                        <!-- 由 JS 動態生成 -->
+                    </div>
+                </div>
                 
-                <!-- 相簿容器 -->
-                <div id="photo-gallery" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                    <!-- 載入中狀態 -->
-                    <div class="animate-pulse bg-gray-200 aspect-square rounded-xl"></div>
-                    <div class="animate-pulse bg-gray-200 aspect-square rounded-xl"></div>
-                    <div class="animate-pulse bg-gray-200 aspect-square rounded-xl"></div>
-                    <div class="animate-pulse bg-gray-200 aspect-square rounded-xl"></div>
+                <!-- 照片網格 -->
+                <div id="photo-gallery" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <!-- 載入中骨架屏 -->
+                    <div class="animate-pulse bg-gray-200 h-64 rounded-2xl"></div>
+                    <div class="animate-pulse bg-gray-200 h-64 rounded-2xl"></div>
+                    <div class="animate-pulse bg-gray-200 h-64 rounded-2xl"></div>
                 </div>
             </div>
         </section>
+
+        <!-- 簡易燈箱 (Lightbox) -->
+        <div id="lightbox" class="fixed inset-0 z-[100] bg-black/90 hidden flex items-center justify-center p-4 cursor-zoom-out" onclick="closeLightbox()">
+            <img id="lightbox-img" src="" class="max-w-full max-h-full rounded-lg shadow-2xl transition-transform duration-300">
+            <p id="lightbox-caption" class="absolute bottom-8 text-white font-medium"></p>
+            <button class="absolute top-8 right-8 text-white text-4xl">&times;</button>
+        </div>
     </section>
     
     <!-- tab: about -->
@@ -271,7 +285,7 @@
 
         // 初始化日曆
         initCalendar();
-        loadGallery();
+        loadAlbums();
     });
 
     function initCalendar() {
@@ -379,38 +393,74 @@
         calendar.render();
 
     }
-
-    /**
-     * 從後端 API 抓取相簿並渲染
-     * 會向固定的 baseUrl 發請求；若有 userToken 則帶 Authorization header
-     */
-    async function loadGallery() {
+    async function loadAlbums(userToken) {
         const gallery = document.getElementById('photo-gallery');
-        if (!gallery) return;
-        gallery.innerHTML = '<div class="col-span-full text-center text-gray-500">載入中…</div>';
+        const tabsContainer = document.getElementById('album-tabs');
+        
         try {
-            const res = await fetch(`${baseUrl}/api/get-album`, {
-                method: 'GET',
+            const response = await fetch(`${baseUrl}/api/get-albums`, {
+                headers: { 'Authorization': `Bearer ${userToken}` }
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const photos = await res.json();
-            if (photos.error) throw new Error(photos.error);
-            if (!Array.isArray(photos) || photos.length === 0) {
-                gallery.innerHTML = '<p class="col-span-full text-center text-gray-400">目前尚無照片</p>';
-                return;
-            }
-            gallery.innerHTML = photos.map(photo => `
-                <div class="group relative overflow-hidden rounded-2xl bg-white shadow-md hover:shadow-xl transition-all duration-300">
-                    <img src="${photo.url}" alt="${photo.name || ''}" class="w-full h-64 object-cover group-hover:scale-110 transition-transform duration-500">
-                    <div class="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-4">
-                        <p class="text-white text-sm font-medium truncate">${photo.name || ''}</p>
-                    </div>
-                </div>
+            albumData = await response.json();
+            
+            if (albumData.error) throw new Error(albumData.error);
+
+            // 1. 生成相簿分頁標籤
+            tabsContainer.innerHTML = albumData.map((album, index) => `
+                <button onclick="displayAlbum(${index})" 
+                        class="album-tab px-6 py-2 rounded-full font-bold transition-all ${index === 0 ? 'bg-blue-600 text-white shadow-lg' : 'bg-white text-slate-600 hover:bg-slate-100'}">
+                    ${album.albumName} (${album.photos.length})
+                </button>
             `).join('');
-        } catch (err) {
-            console.error('相簿載入失敗:', err);
-            gallery.innerHTML = `<p class="col-span-full text-center text-red-500">載入失敗: ${err.message}</p>`;
+
+            // 2. 預設顯示第一個相簿
+            if (albumData.length > 0) displayAlbum(0);
+
+        } catch (error) {
+            gallery.innerHTML = `<p class="col-span-full text-center text-red-500">載入失敗: ${error.message}</p>`;
         }
+    }
+
+    function displayAlbum(index) {
+        const gallery = document.getElementById('photo-gallery');
+        const album = albumData[index];
+        
+        // 更新 Tab 樣式
+        document.querySelectorAll('.album-tab').forEach((btn, i) => {
+            if(i === index) {
+                btn.classList.add('bg-blue-600', 'text-white', 'shadow-lg');
+                btn.classList.remove('bg-white', 'text-slate-600');
+            } else {
+                btn.classList.remove('bg-blue-600', 'text-white', 'shadow-lg');
+                btn.classList.add('bg-white', 'text-slate-600');
+            }
+        });
+
+        // 渲染照片
+        gallery.innerHTML = album.photos.map(photo => `
+            <div class="group relative overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-xl transition-all cursor-pointer" 
+                 onclick="openLightbox('${photo.url}', '${photo.name}')">
+                <img src="${photo.thumb}" alt="${photo.name}" class="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-500">
+                <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                    <i class="fa-solid fa-magnifying-glass-plus text-white text-2xl"></i>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function openLightbox(url, name) {
+        const lb = document.getElementById('lightbox');
+        const img = document.getElementById('lightbox-img');
+        const cap = document.getElementById('lightbox-caption');
+        img.src = url;
+        cap.innerText = name;
+        lb.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeLightbox() {
+        document.getElementById('lightbox').classList.add('hidden');
+        document.body.style.overflow = 'auto';
     }
 
     // 切換標籤頁
