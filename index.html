@@ -393,7 +393,7 @@
         calendar.render();
 
     }
-    async function loadAlbums(userToken) {
+    async function loadAlbums() {
         const gallery = document.getElementById('photo-gallery');
         const tabsContainer = document.getElementById('album-tabs');
         
@@ -486,6 +486,17 @@
             if (activeTabContent) {
                 activeTabContent.classList.remove('hidden');
                 activeTabContent.setAttribute('aria-hidden', 'false');
+            }
+
+            // 如果回到日曆，讓 FullCalendar 更新大小
+            if (targetTab === 'tab-calendar' && window.calendar && typeof window.calendar.updateSize === 'function') {
+                setTimeout(() => window.calendar.updateSize(), 50);
+            }
+
+            // 如果切到相簿，自動載入相簿
+            if (targetTab === 'tab-settings') {
+                const userToken = window.userToken || localStorage.getItem('userToken') || null;
+                if (typeof loadAlbums === 'function') loadAlbums();
             }
         });
     });
